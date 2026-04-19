@@ -5,7 +5,7 @@ namespace SingTray.Client;
 
 public sealed class TrayMenuBuilder
 {
-    private const int MenuWidth = 260;
+    private const int MenuWidth = 280;
     private const int HeaderHeight = 30;
     private const int StandardItemHeight = 28;
 
@@ -25,7 +25,8 @@ public sealed class TrayMenuBuilder
         _toggleItem = new HeaderMenuItem(toggleHandler)
         {
             AutoSize = false,
-            Size = new Size(MenuWidth, HeaderHeight)
+            Size = new Size(MenuWidth, HeaderHeight),
+            ShowShortcutKeys = true
         };
 
         _importConfigItem = CreateStatusItem("Import Config", importConfigHandler);
@@ -149,55 +150,31 @@ public sealed class TrayMenuBuilder
             return "Ready";
         }
 
-        var version = status.Core.Version!;
-        return version.StartsWith("sing-box ", StringComparison.OrdinalIgnoreCase)
-            ? version["sing-box ".Length..]
-            : version;
+        var version = status.Core.Version!.Trim();
+        if (version.StartsWith("sing-box ", StringComparison.OrdinalIgnoreCase))
+        {
+            version = version["sing-box ".Length..].TrimStart();
+        }
+
+        if (version.StartsWith("version ", StringComparison.OrdinalIgnoreCase))
+        {
+            version = version["version ".Length..].TrimStart();
+        }
+
+        return version;
     }
 }
 
 internal sealed class HeaderMenuItem : ToolStripMenuItem
 {
-    private string _state = "Loading";
-
     public HeaderMenuItem(EventHandler clickHandler) : base("SingTray", null, clickHandler)
     {
+        ShortcutKeyDisplayString = "Loading";
+        TextAlign = ContentAlignment.MiddleLeft;
     }
 
     public void SetState(string state)
     {
-        _state = state;
-        Invalidate();
-    }
-
-    protected override void OnPaint(PaintEventArgs e)
-    {
-        var bounds = new Rectangle(Point.Empty, Size);
-        var backgroundColor = Selected && Enabled ? SystemColors.Highlight : SystemColors.ControlLightLight;
-        var textColor = Selected && Enabled ? SystemColors.HighlightText : SystemColors.ControlText;
-        var secondaryColor = Selected && Enabled ? SystemColors.HighlightText : Color.FromArgb(90, 90, 90);
-
-        using var background = new SolidBrush(backgroundColor);
-        e.Graphics.FillRectangle(background, bounds);
-
-        var titleRect = new Rectangle(10, 0, bounds.Width - 120, bounds.Height);
-        var stateRect = new Rectangle(bounds.Width - 96, 0, 66, bounds.Height);
-        var headerFont = Font ?? SystemFonts.MenuFont ?? Control.DefaultFont;
-
-        TextRenderer.DrawText(
-            e.Graphics,
-            "SingTray",
-            new Font(headerFont, FontStyle.Bold),
-            titleRect,
-            textColor,
-            TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
-
-        TextRenderer.DrawText(
-            e.Graphics,
-            _state,
-            headerFont,
-            stateRect,
-            secondaryColor,
-            TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+        ShortcutKeyDisplayString = state;
     }
 }

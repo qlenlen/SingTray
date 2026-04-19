@@ -113,7 +113,10 @@ public sealed class TrayApplicationContext : ApplicationContext
             }
             else if (!shouldBeRunning && _lastStatus.SingBoxRunning)
             {
-                await ExecuteOperationAsync(() => _pipeClient.StopAsync(CancellationToken.None), showMessageOnSuccess: false);
+                await ExecuteOperationAsync(
+                    () => _pipeClient.StopAsync(CancellationToken.None),
+                    showMessageOnSuccess: false,
+                    suppressExpectedStopErrors: true);
                 await _statusPoller.PollNowAsync();
             }
         }
@@ -151,7 +154,10 @@ public sealed class TrayApplicationContext : ApplicationContext
         if (_lastStatus.RunState == RunState.Running)
         {
             await _desiredStateStore.WriteAsync(false);
-            await ExecuteOperationAsync(() => _pipeClient.StopAsync(CancellationToken.None), showMessageOnSuccess: false);
+            await ExecuteOperationAsync(
+                () => _pipeClient.StopAsync(CancellationToken.None),
+                showMessageOnSuccess: false,
+                suppressExpectedStopErrors: true);
         }
         else if (_lastStatus.RunState == RunState.Error)
         {
@@ -272,7 +278,8 @@ public sealed class TrayApplicationContext : ApplicationContext
             await ExecuteOperationAsync(
                 () => _pipeClient.StopAsync(CancellationToken.None),
                 showMessageOnSuccess: false,
-                suppressExpectedExitErrors: true);
+                suppressExpectedExitErrors: true,
+                suppressExpectedStopErrors: true);
         }
         catch (Exception ex)
         {
@@ -297,7 +304,8 @@ public sealed class TrayApplicationContext : ApplicationContext
     private async Task ExecuteOperationAsync(
         Func<Task<OperationResult>> action,
         bool showMessageOnSuccess = true,
-        bool suppressExpectedExitErrors = false)
+        bool suppressExpectedExitErrors = false,
+        bool suppressExpectedStopErrors = false)
     {
         if (_isBusy)
         {
@@ -316,13 +324,14 @@ public sealed class TrayApplicationContext : ApplicationContext
                     return;
                 }
 
+                if (suppressExpectedStopErrors && IsExpectedStopMessage(result.Message))
+                {
+                    await _clientLogService.WriteInfoAsync($"Suppressed expected stop-time service error: {result.Message}");
+                    return;
+                }
+
                 ShowError(result.Message);
                 return;
-            }
-
-            if (showMessageOnSuccess)
-            {
-                _notifyIcon.ShowBalloonTip(1500, "SingTray", result.Message, ToolTipIcon.Info);
             }
         }
         catch (Exception ex)
@@ -330,6 +339,12 @@ public sealed class TrayApplicationContext : ApplicationContext
             if (suppressExpectedExitErrors && _isExiting && IsExpectedExitException(ex))
             {
                 await _clientLogService.WriteInfoAsync($"Suppressed expected exit-time exception: {ex.Message}");
+                return;
+            }
+
+            if (suppressExpectedStopErrors && IsExpectedStopException(ex))
+            {
+                await _clientLogService.WriteInfoAsync($"Suppressed expected stop-time exception: {ex.Message}");
                 return;
             }
 
@@ -406,6 +421,28 @@ public sealed class TrayApplicationContext : ApplicationContext
         }
 
         return ex is TimeoutException or IOException;
+    }
+
+    private static bool IsExpectedStopException(Exception ex)
+    {
+        if (ex is PipeClientException pipeEx)
+        {
+            return pipeEx.Kind is PipeFailureKind.Timeout or PipeFailureKind.PipeNotFound;
+        }
+
+        return ex is TimeoutException or IOException;
+    }
+
+    private static bool IsExpectedStopMessage(string? message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            return false;
+        }
+
+        return message.Contains("timed out", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("pipe", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("broken pipe", StringComparison.OrdinalIgnoreCase);
     }
 
     private static Icon CreateStatusIcon(Color color)
