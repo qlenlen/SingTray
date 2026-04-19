@@ -1,4 +1,5 @@
 using System.Text.Json;
+using SingTray.Service.Services;
 using SingTray.Shared;
 using SingTray.Shared.Enums;
 using SingTray.Shared.Models;
@@ -8,7 +9,13 @@ namespace SingTray.Service;
 public sealed class ServiceState
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly LogService _logService;
     private ServiceStateRecord _record = new();
+
+    public ServiceState(LogService logService)
+    {
+        _logService = logService;
+    }
 
     public async Task InitializeAsync(CancellationToken cancellationToken)
     {
@@ -43,16 +50,26 @@ public sealed class ServiceState
 
     public async Task UpdateAsync(Action<ServiceStateRecord> updater, CancellationToken cancellationToken)
     {
+        RunState previousState;
+        RunState currentState;
+
         await _gate.WaitAsync(cancellationToken);
         try
         {
+            previousState = _record.RunState;
             updater(_record);
+            currentState = _record.RunState;
             _record.UpdatedAt = DateTimeOffset.UtcNow;
             await PersistCoreAsync(cancellationToken);
         }
         finally
         {
             _gate.Release();
+        }
+
+        if (previousState != currentState)
+        {
+            await _logService.WriteInfoAsync($"Runtime state changed: {previousState} -> {currentState}.", cancellationToken);
         }
     }
 

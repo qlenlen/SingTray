@@ -19,21 +19,19 @@ public sealed class PipeCommandHandler
 
     public async Task<PipeResponse> HandleAsync(PipeRequest request, CancellationToken cancellationToken)
     {
-        await _logService.WriteInfoAsync($"IPC request: {request.Action}", cancellationToken);
-
         try
         {
             return request.Action switch
             {
                 "ping" => PipeResponse.FromSuccess(new PingInfo()),
                 "get_status" => PipeResponse.FromSuccess(await _singBoxManager.GetStatusAsync(cancellationToken)),
-                "start" => ToResponse(await _singBoxManager.StartAsync(ReadStartRequest(request), cancellationToken)),
-                "stop" => ToResponse(await _singBoxManager.StopAsync(cancellationToken)),
-                "restart" => ToResponse(await _singBoxManager.RestartAsync(ReadStartRequest(request), cancellationToken)),
-                "import_config" => ToResponse(await _importService.ImportConfigAsync(ReadImportRequest(request).ImportedFileName, cancellationToken)),
-                "import_core" => ToResponse(await _importService.ImportCoreAsync(ReadImportRequest(request).ImportedFileName, cancellationToken)),
+                "start" => ToResponse(await HandleStartAsync(request, cancellationToken)),
+                "stop" => ToResponse(await HandleStopAsync(cancellationToken)),
+                "restart" => ToResponse(await HandleRestartAsync(request, cancellationToken)),
+                "import_config" => ToResponse(await HandleImportConfigAsync(request, cancellationToken)),
+                "import_core" => ToResponse(await HandleImportCoreAsync(request, cancellationToken)),
                 "get_paths" => PipeResponse.FromSuccess(new PathInfo()),
-                _ => PipeResponse.FromError($"Unknown action: {request.Action}")
+                _ => await HandleUnknownActionAsync(request.Action, cancellationToken)
             };
         }
         catch (Exception ex)
@@ -41,6 +39,42 @@ public sealed class PipeCommandHandler
             await _logService.WriteErrorAsync($"IPC action failed: {request.Action}", ex, cancellationToken);
             return PipeResponse.FromError(ex.Message);
         }
+    }
+
+    private async Task<OperationResult> HandleStartAsync(PipeRequest request, CancellationToken cancellationToken)
+    {
+        await _logService.WriteInfoAsync("Start requested.", cancellationToken);
+        return await _singBoxManager.StartAsync(ReadStartRequest(request), cancellationToken);
+    }
+
+    private async Task<OperationResult> HandleStopAsync(CancellationToken cancellationToken)
+    {
+        await _logService.WriteInfoAsync("Stop requested.", cancellationToken);
+        return await _singBoxManager.StopAsync(cancellationToken);
+    }
+
+    private async Task<OperationResult> HandleRestartAsync(PipeRequest request, CancellationToken cancellationToken)
+    {
+        await _logService.WriteInfoAsync("Restart requested.", cancellationToken);
+        return await _singBoxManager.RestartAsync(ReadStartRequest(request), cancellationToken);
+    }
+
+    private async Task<OperationResult> HandleImportConfigAsync(PipeRequest request, CancellationToken cancellationToken)
+    {
+        await _logService.WriteInfoAsync("Import config requested.", cancellationToken);
+        return await _importService.ImportConfigAsync(ReadImportRequest(request).ImportedFileName, cancellationToken);
+    }
+
+    private async Task<OperationResult> HandleImportCoreAsync(PipeRequest request, CancellationToken cancellationToken)
+    {
+        await _logService.WriteInfoAsync("Import core requested.", cancellationToken);
+        return await _importService.ImportCoreAsync(ReadImportRequest(request).ImportedFileName, cancellationToken);
+    }
+
+    private async Task<PipeResponse> HandleUnknownActionAsync(string action, CancellationToken cancellationToken)
+    {
+        await _logService.WriteWarningAsync($"Unknown IPC action received: {action}", cancellationToken);
+        return PipeResponse.FromError($"Unknown action: {action}");
     }
 
     private static ImportRequest ReadImportRequest(PipeRequest request)

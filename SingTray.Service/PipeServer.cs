@@ -21,7 +21,7 @@ public sealed class PipeServer : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await _logService.WriteInfoAsync($"Named pipe server starting on '{AppPaths.PipeName}'.", stoppingToken);
+        await _logService.WriteInfoAsync("Named pipe server started.", stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -29,9 +29,7 @@ public sealed class PipeServer : BackgroundService
             try
             {
                 server = CreateServer();
-                await _logService.WriteInfoAsync($"Named pipe waiting for connection on '{AppPaths.PipeName}'.", stoppingToken);
                 await server.WaitForConnectionAsync(stoppingToken);
-                await _logService.WriteInfoAsync("Named pipe client connected.", stoppingToken);
 
                 var connectedServer = server;
                 _ = Task.Run(
@@ -95,10 +93,8 @@ public sealed class PipeServer : BackgroundService
                 return;
             }
 
-            await _logService.WriteInfoAsync($"Named pipe request received: {request.Action}", cancellationToken);
             var response = await _handler.HandleAsync(request, cancellationToken);
             await writer.WriteLineAsync(JsonSerializer.Serialize(response, PipeContracts.JsonOptions));
-            await _logService.WriteInfoAsync($"Named pipe request handled: {request.Action}, success={response.Success}.", cancellationToken);
         }
         catch (Exception ex)
         {

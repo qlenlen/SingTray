@@ -37,7 +37,8 @@ public sealed class ImportService
             var tempValidation = await ValidateConfigAsync(validationCopyPath, cancellationToken);
             if (!tempValidation.Success)
             {
-                await _logService.WriteWarningAsync($"Config import rejected: {tempValidation.Message}", cancellationToken);
+                await _logService.WriteWarningAsync($"Config validation failed: {tempValidation.Message}", cancellationToken);
+                await RefreshConfigStateAsync(cancellationToken);
                 return tempValidation;
             }
 
@@ -66,12 +67,14 @@ public sealed class ImportService
                 throw;
             }
 
-            await _logService.WriteInfoAsync($"Config imported from {importedFileName}.", cancellationToken);
+            await _logService.WriteInfoAsync("Config replaced successfully.", cancellationToken);
+            await RefreshConfigStateAsync(cancellationToken);
             return OperationResult.Ok("Config imported successfully.");
         }
         catch (Exception ex)
         {
             await _logService.WriteErrorAsync($"Import config failed for {importedFileName}.", ex, cancellationToken);
+            await RefreshConfigStateAsync(cancellationToken);
             return OperationResult.Fail($"Failed to import config: {ex.Message}");
         }
         finally
@@ -115,6 +118,8 @@ public sealed class ImportService
             var validation = await _singBoxManager.ValidateCoreExecutableAsync(Path.Combine(stagedCoreRoot, "sing-box.exe"), cancellationToken);
             if (!validation.Success)
             {
+                await _logService.WriteWarningAsync($"Core validation failed: {validation.Message}", cancellationToken);
+                await RefreshCoreStateAsync(cancellationToken);
                 return OperationResult.Fail($"Core invalid: {validation.Message}");
             }
 
@@ -138,12 +143,14 @@ public sealed class ImportService
                 throw;
             }
 
-            await _logService.WriteInfoAsync($"Core imported from {importedFileName}.", cancellationToken);
+            await _logService.WriteInfoAsync("Core replaced successfully.", cancellationToken);
+            await RefreshCoreStateAsync(cancellationToken);
             return OperationResult.Ok($"Core imported successfully: {validation.Message}");
         }
         catch (Exception ex)
         {
             await _logService.WriteErrorAsync($"Import core failed for {importedFileName}.", ex, cancellationToken);
+            await RefreshCoreStateAsync(cancellationToken);
             return OperationResult.Fail($"Failed to import core: {ex.Message}");
         }
         finally
@@ -151,6 +158,30 @@ public sealed class ImportService
             TryDeleteDirectory(extractRoot);
             TryDeleteDirectory(stagedCoreRoot);
         }
+    }
+
+    private async Task RefreshConfigStateAsync(CancellationToken cancellationToken)
+    {
+        var config = await _singBoxManager.GetConfigInfoAsync(cancellationToken);
+        await _serviceState.UpdateAsync(record =>
+        {
+            record.ConfigInstalled = config.Installed;
+            record.ConfigValid = config.Valid;
+            record.ConfigName = config.FileName;
+            record.ConfigValidationMessage = config.ValidationMessage;
+        }, cancellationToken);
+    }
+
+    private async Task RefreshCoreStateAsync(CancellationToken cancellationToken)
+    {
+        var core = await _singBoxManager.GetCoreInfoAsync(cancellationToken);
+        await _serviceState.UpdateAsync(record =>
+        {
+            record.CoreInstalled = core.Installed;
+            record.CoreValid = core.Valid;
+            record.CoreVersion = core.Version;
+            record.CoreValidationMessage = core.ValidationMessage;
+        }, cancellationToken);
     }
 
     private async Task<OperationResult> ValidateConfigAsync(string configPath, CancellationToken cancellationToken)

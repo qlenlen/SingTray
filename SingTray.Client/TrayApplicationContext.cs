@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Drawing.Drawing2D;
 using SingTray.Shared;
 using SingTray.Shared.Enums;
 using SingTray.Shared.Models;
@@ -58,9 +59,9 @@ public sealed class TrayApplicationContext : ApplicationContext
 
         _menuBuilder = new TrayMenuBuilder(OnToggleRequested, OnImportConfigRequested, OnImportCoreRequested, OnOpenDataFolderRequested, OnExitRequested);
         _menu = _menuBuilder.Build();
-        _runningIcon = CreateStatusIcon(Color.ForestGreen);
-        _stoppedIcon = CreateStatusIcon(Color.Gray);
-        _errorIcon = CreateStatusIcon(Color.Firebrick);
+        _runningIcon = CreateStatusIcon(Color.FromArgb(56, 189, 104));
+        _stoppedIcon = CreateStatusIcon(Color.FromArgb(234, 179, 8));
+        _errorIcon = CreateStatusIcon(Color.FromArgb(220, 38, 38));
         _notifyIcon = new NotifyIcon
         {
             Text = "SingTray",
@@ -447,14 +448,33 @@ public sealed class TrayApplicationContext : ApplicationContext
 
     private static Icon CreateStatusIcon(Color color)
     {
-        var bitmap = new Bitmap(16, 16);
+        const int size = 32;
+        var bitmap = new Bitmap(size, size);
         using var graphics = Graphics.FromImage(bitmap);
         graphics.Clear(Color.Transparent);
-        using var brush = new SolidBrush(color);
-        using var border = new Pen(Color.FromArgb(70, 70, 70));
-        graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-        graphics.FillEllipse(brush, 2, 2, 11, 11);
-        graphics.DrawEllipse(border, 2, 2, 11, 11);
+        graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+        graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+
+        using var accentPath = CreateSpeedSPath();
+        graphics.TranslateTransform(0.8f, 0.9f);
+        using var shadowPen = new Pen(Color.FromArgb(84, 0, 0, 0), 4.8f)
+        {
+            StartCap = LineCap.Round,
+            EndCap = LineCap.Round,
+            LineJoin = LineJoin.Round
+        };
+        graphics.DrawPath(shadowPen, accentPath);
+        graphics.ResetTransform();
+
+        using var accentPen = new Pen(color, 4.25f)
+        {
+            StartCap = LineCap.Round,
+            EndCap = LineCap.Round,
+            LineJoin = LineJoin.Round
+        };
+        graphics.DrawPath(accentPen, accentPath);
+
         var handle = bitmap.GetHicon();
         try
         {
@@ -469,4 +489,25 @@ public sealed class TrayApplicationContext : ApplicationContext
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool DestroyIcon(IntPtr hIcon);
+
+    private static GraphicsPath CreateSpeedSPath()
+    {
+        var path = new GraphicsPath();
+        path.AddBezier(
+            new PointF(22.0f, 7.8f),
+            new PointF(17.6f, 4.2f),
+            new PointF(9.2f, 5.3f),
+            new PointF(10.0f, 10.6f));
+        path.AddBezier(
+            new PointF(10.0f, 10.6f),
+            new PointF(10.9f, 14.2f),
+            new PointF(22.8f, 12.5f),
+            new PointF(21.9f, 18.1f));
+        path.AddBezier(
+            new PointF(21.9f, 18.1f),
+            new PointF(21.0f, 23.0f),
+            new PointF(12.9f, 25.5f),
+            new PointF(8.8f, 22.0f));
+        return path;
+    }
 }

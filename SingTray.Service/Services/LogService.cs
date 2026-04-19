@@ -6,6 +6,8 @@ namespace SingTray.Service.Services;
 
 public sealed class LogService
 {
+    private static readonly bool EnableDebugLogging = false;
+
     private readonly SemaphoreSlim _appLogLock = new(1, 1);
     private readonly SemaphoreSlim _singBoxLogLock = new(1, 1);
     private readonly ILogger<LogService> _logger;
@@ -18,21 +20,33 @@ public sealed class LogService
     public async Task InitializeAsync(CancellationToken cancellationToken)
     {
         AppPaths.EnsureDataDirectories();
+        await File.WriteAllTextAsync(AppPaths.AppLogPath, string.Empty, Encoding.UTF8, cancellationToken);
+        await File.WriteAllTextAsync(AppPaths.SingBoxLogPath, string.Empty, Encoding.UTF8, cancellationToken);
         await WriteAppLogAsync("Service logging initialized.", cancellationToken);
     }
 
     public Task WriteInfoAsync(string message, CancellationToken cancellationToken) =>
-        WriteAppLogAsync($"INFO {message}", cancellationToken);
+        WriteAppLogAsync($"INFO {message}", LogLevel.Information, cancellationToken);
 
     public Task WriteWarningAsync(string message, CancellationToken cancellationToken) =>
-        WriteAppLogAsync($"WARN {message}", cancellationToken);
+        WriteAppLogAsync($"WARN {message}", LogLevel.Warning, cancellationToken);
+
+    public Task WriteDebugAsync(string message, CancellationToken cancellationToken)
+    {
+        if (!EnableDebugLogging)
+        {
+            return Task.CompletedTask;
+        }
+
+        return WriteAppLogAsync($"DEBUG {message}", LogLevel.Debug, cancellationToken);
+    }
 
     public Task WriteErrorAsync(string message, Exception? exception, CancellationToken cancellationToken)
     {
         var fullMessage = exception is null
             ? $"ERROR {message}"
             : $"ERROR {message}{Environment.NewLine}{exception}";
-        return WriteAppLogAsync(fullMessage, cancellationToken);
+        return WriteAppLogAsync(fullMessage, LogLevel.Error, cancellationToken);
     }
 
     public async Task WriteSingBoxOutputAsync(string source, string line, CancellationToken cancellationToken)
@@ -49,10 +63,13 @@ public sealed class LogService
         }
     }
 
-    private async Task WriteAppLogAsync(string message, CancellationToken cancellationToken)
+    private async Task WriteAppLogAsync(string message, CancellationToken cancellationToken) =>
+        await WriteAppLogAsync(message, LogLevel.Information, cancellationToken);
+
+    private async Task WriteAppLogAsync(string message, LogLevel level, CancellationToken cancellationToken)
     {
         var entry = $"{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss} {message}{Environment.NewLine}";
-        _logger.LogInformation("{Message}", message);
+        _logger.Log(level, "{Message}", message);
 
         await _appLogLock.WaitAsync(cancellationToken);
         try
