@@ -156,7 +156,14 @@ public sealed class TrayApplicationContext : ApplicationContext
         else if (_lastStatus.RunState == RunState.Error)
         {
             await _desiredStateStore.WriteAsync(true);
-            await ExecuteOperationAsync(() => _pipeClient.RestartAsync(BuildStartRequest(), CancellationToken.None));
+            if (_lastStatus.SingBoxRunning)
+            {
+                await ExecuteOperationAsync(() => _pipeClient.RestartAsync(BuildStartRequest(), CancellationToken.None));
+            }
+            else
+            {
+                await ExecuteOperationAsync(() => _pipeClient.StartAsync(BuildStartRequest(), CancellationToken.None));
+            }
         }
         else
         {

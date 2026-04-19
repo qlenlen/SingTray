@@ -5,13 +5,13 @@ namespace SingTray.Client;
 
 public sealed class TrayMenuBuilder
 {
-    private const int MenuWidth = 240;
-    private const int HeaderHeight = 52;
+    private const int MenuWidth = 260;
+    private const int HeaderHeight = 30;
     private const int StandardItemHeight = 28;
 
     private readonly HeaderMenuItem _toggleItem;
-    private readonly StatusMenuItem _importConfigItem;
-    private readonly StatusMenuItem _importCoreItem;
+    private readonly ToolStripMenuItem _importConfigItem;
+    private readonly ToolStripMenuItem _importCoreItem;
     private readonly ToolStripMenuItem _openDataFolderItem;
     private readonly ToolStripMenuItem _exitItem;
 
@@ -28,18 +28,8 @@ public sealed class TrayMenuBuilder
             Size = new Size(MenuWidth, HeaderHeight)
         };
 
-        _importConfigItem = new StatusMenuItem("Import Config", importConfigHandler)
-        {
-            AutoSize = false,
-            Size = new Size(MenuWidth, StandardItemHeight)
-        };
-
-        _importCoreItem = new StatusMenuItem("Import Core", importCoreHandler)
-        {
-            AutoSize = false,
-            Size = new Size(MenuWidth, StandardItemHeight)
-        };
-
+        _importConfigItem = CreateStatusItem("Import Config", importConfigHandler);
+        _importCoreItem = CreateStatusItem("Import Core", importCoreHandler);
         _openDataFolderItem = CreateStandardItem("Open Data Folder", openDataFolderHandler);
         _exitItem = CreateStandardItem("Exit", exitHandler);
     }
@@ -65,16 +55,12 @@ public sealed class TrayMenuBuilder
     {
         if (!serviceAvailable || status is null)
         {
-            _toggleItem.SetState("Service unavailable");
+            _toggleItem.SetState("Unavailable");
             _toggleItem.Enabled = false;
             _toggleItem.Checked = false;
 
-            _importConfigItem.SetStatus("Unavailable");
-            _importConfigItem.Enabled = false;
-
-            _importCoreItem.SetStatus("Unavailable");
-            _importCoreItem.Enabled = false;
-
+            SetStatusItem(_importConfigItem, "Unavailable", enabled: false);
+            SetStatusItem(_importCoreItem, "Unavailable", enabled: false);
             _openDataFolderItem.Enabled = true;
             return;
         }
@@ -93,13 +79,21 @@ public sealed class TrayMenuBuilder
         _toggleItem.Enabled = status.RunState is not RunState.Starting and not RunState.Stopping;
         _toggleItem.Checked = status.RunState == RunState.Running;
 
-        _importConfigItem.SetStatus(BuildConfigStatusLabel(status));
-        _importConfigItem.Enabled = !status.SingBoxRunning;
-
-        _importCoreItem.SetStatus(BuildCoreStatusLabel(status));
-        _importCoreItem.Enabled = !status.SingBoxRunning;
-
+        var importEnabled = status.RunState is not RunState.Starting and not RunState.Stopping and not RunState.Running;
+        SetStatusItem(_importConfigItem, BuildConfigStatusLabel(status), enabled: importEnabled);
+        SetStatusItem(_importCoreItem, BuildCoreStatusLabel(status), enabled: importEnabled);
         _openDataFolderItem.Enabled = true;
+    }
+
+    private static ToolStripMenuItem CreateStatusItem(string text, EventHandler clickHandler)
+    {
+        return new ToolStripMenuItem(text, null, clickHandler)
+        {
+            AutoSize = false,
+            Size = new Size(MenuWidth, StandardItemHeight),
+            TextAlign = ContentAlignment.MiddleLeft,
+            ShowShortcutKeys = true
+        };
     }
 
     private static ToolStripMenuItem CreateStandardItem(string text, EventHandler clickHandler)
@@ -110,6 +104,12 @@ public sealed class TrayMenuBuilder
             Size = new Size(MenuWidth, StandardItemHeight),
             TextAlign = ContentAlignment.MiddleLeft
         };
+    }
+
+    private static void SetStatusItem(ToolStripMenuItem item, string status, bool enabled)
+    {
+        item.ShortcutKeyDisplayString = status;
+        item.Enabled = enabled;
     }
 
     private static string BuildConfigStatusLabel(StatusInfo status)
@@ -173,17 +173,15 @@ internal sealed class HeaderMenuItem : ToolStripMenuItem
     protected override void OnPaint(PaintEventArgs e)
     {
         var bounds = new Rectangle(Point.Empty, Size);
-        var selected = Selected && Enabled;
-        using var background = new SolidBrush(selected ? Color.FromArgb(210, 228, 246) : SystemColors.ControlLightLight);
+        var backgroundColor = Selected && Enabled ? SystemColors.Highlight : SystemColors.ControlLightLight;
+        var textColor = Selected && Enabled ? SystemColors.HighlightText : SystemColors.ControlText;
+        var secondaryColor = Selected && Enabled ? SystemColors.HighlightText : Color.FromArgb(90, 90, 90);
+
+        using var background = new SolidBrush(backgroundColor);
         e.Graphics.FillRectangle(background, bounds);
 
-        using var border = new Pen(Color.FromArgb(192, 210, 230));
-        e.Graphics.DrawRectangle(border, 0, 0, bounds.Width - 1, bounds.Height - 1);
-
-        var left = 10;
-        var titleRect = new Rectangle(left, 7, bounds.Width - (left * 2), 18);
-        var stateRect = new Rectangle(left, 26, bounds.Width - (left * 2), 17);
-
+        var titleRect = new Rectangle(10, 0, bounds.Width - 120, bounds.Height);
+        var stateRect = new Rectangle(bounds.Width - 96, 0, 66, bounds.Height);
         var headerFont = Font ?? SystemFonts.MenuFont ?? Control.DefaultFont;
 
         TextRenderer.DrawText(
@@ -191,7 +189,7 @@ internal sealed class HeaderMenuItem : ToolStripMenuItem
             "SingTray",
             new Font(headerFont, FontStyle.Bold),
             titleRect,
-            SystemColors.ControlText,
+            textColor,
             TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
 
         TextRenderer.DrawText(
@@ -199,52 +197,6 @@ internal sealed class HeaderMenuItem : ToolStripMenuItem
             _state,
             headerFont,
             stateRect,
-            Color.FromArgb(64, 64, 64),
-            TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
-    }
-}
-
-internal sealed class StatusMenuItem : ToolStripMenuItem
-{
-    private readonly string _title;
-    private string _status = string.Empty;
-
-    public StatusMenuItem(string title, EventHandler clickHandler) : base(title, null, clickHandler)
-    {
-        _title = title;
-    }
-
-    public void SetStatus(string status)
-    {
-        _status = status;
-        Invalidate();
-    }
-
-    protected override void OnPaint(PaintEventArgs e)
-    {
-        var bounds = new Rectangle(Point.Empty, Size);
-        var selected = Selected && Enabled;
-        using var background = new SolidBrush(selected ? SystemColors.Highlight : SystemColors.ControlLightLight);
-        e.Graphics.FillRectangle(background, bounds);
-
-        var leftRect = new Rectangle(10, 0, bounds.Width - 90, bounds.Height);
-        var rightRect = new Rectangle(bounds.Width - 78, 0, 68, bounds.Height);
-        var mainColor = selected ? SystemColors.HighlightText : SystemColors.ControlText;
-        var secondaryColor = selected ? SystemColors.HighlightText : Color.FromArgb(90, 90, 90);
-
-        TextRenderer.DrawText(
-            e.Graphics,
-            _title,
-            Font ?? SystemFonts.MenuFont,
-            leftRect,
-            mainColor,
-            TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
-
-        TextRenderer.DrawText(
-            e.Graphics,
-            _status,
-            Font ?? SystemFonts.MenuFont,
-            rightRect,
             secondaryColor,
             TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
     }

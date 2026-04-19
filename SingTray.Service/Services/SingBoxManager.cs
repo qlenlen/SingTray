@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Text;
 using System.Threading;
@@ -56,7 +57,7 @@ public sealed class SingBoxManager
         await _gate.WaitAsync(cancellationToken);
         try
         {
-            if (_currentProcess is { HasExited: false })
+            if (IsTrackedProcessAlive())
             {
                 if (!string.IsNullOrWhiteSpace(startRequest?.LastError) &&
                     startRequest.LastError.Contains("FATAL", StringComparison.OrdinalIgnoreCase))
@@ -78,7 +79,7 @@ public sealed class SingBoxManager
                 await CleanupCurrentProcessAsync(cancellationToken);
             }
 
-            if (_currentProcess is { HasExited: false })
+            if (IsTrackedProcessAlive())
             {
                 return OperationResult.Ok("sing-box is already running.");
             }
@@ -148,7 +149,7 @@ public sealed class SingBoxManager
 
             await Task.Delay(SingBoxConstants.StartProbeDelayMilliseconds, cancellationToken);
 
-            if (process.HasExited)
+            if (!IsProcessAlive(process))
             {
                 var exitCode = process.ExitCode;
                 var error = BuildExitMessage(exitCode, _lastStdErrLine);
@@ -180,7 +181,8 @@ public sealed class SingBoxManager
         await _gate.WaitAsync(cancellationToken);
         try
         {
-            if (_currentProcess is null || _currentProcess.HasExited)
+            var process = _currentProcess;
+            if (!IsProcessAlive(process))
             {
                 await _serviceState.UpdateAsync(record =>
                 {
@@ -190,19 +192,23 @@ public sealed class SingBoxManager
                 return OperationResult.Ok("sing-box is already stopped.");
             }
 
+            var trackedProcess = process!;
             await _serviceState.UpdateAsync(record => record.RunState = RunState.Stopping, cancellationToken);
-            await _logService.WriteInfoAsync($"Stopping sing-box PID {_currentProcess.Id}.", cancellationToken);
+            var pid = TryGetProcessId(trackedProcess, out var processId)
+                ? processId.ToString(CultureInfo.InvariantCulture)
+                : "unknown";
+            await _logService.WriteInfoAsync($"Stopping sing-box PID {pid}.", cancellationToken);
             _stopRequested = true;
 
-            if (_currentProcess.MainWindowHandle != IntPtr.Zero)
+            if (TryGetMainWindowHandle(trackedProcess) != IntPtr.Zero)
             {
-                _currentProcess.CloseMainWindow();
+                TryCloseMainWindow(trackedProcess);
             }
 
-            if (!await WaitForExitAsync(_currentProcess, SingBoxConstants.StopTimeoutMilliseconds, cancellationToken))
+            if (!await WaitForExitAsync(trackedProcess, SingBoxConstants.StopTimeoutMilliseconds, cancellationToken))
             {
-                _currentProcess.Kill(entireProcessTree: true);
-                if (!await WaitForExitAsync(_currentProcess, 2000, cancellationToken))
+                await ForceTerminateProcessAsync(trackedProcess, "stop request timeout", cancellationToken);
+                if (IsProcessAlive(trackedProcess))
                 {
                     return OperationResult.Fail("Failed to stop sing-box within timeout.");
                 }
@@ -215,8 +221,12 @@ public sealed class SingBoxManager
                 record.LastError = null;
             }, cancellationToken);
 
-            _currentProcess.Dispose();
-            _currentProcess = null;
+            if (ReferenceEquals(_currentProcess, trackedProcess))
+            {
+                _currentProcess.Dispose();
+                _currentProcess = null;
+            }
+
             return OperationResult.Ok("sing-box stopped.");
         }
         catch (Exception ex)
@@ -314,7 +324,7 @@ public sealed class SingBoxManager
     {
         await _serviceState.UpdateAsync(record =>
         {
-            if (_currentProcess is null || _currentProcess.HasExited)
+            if (!IsTrackedProcessAlive())
             {
                 if (record.RunState is RunState.Running or RunState.Starting or RunState.Stopping)
                 {
@@ -479,9 +489,12 @@ public sealed class SingBoxManager
 
         try
         {
-            if (!_currentProcess.HasExited)
+            if (IsTrackedProcessAlive())
             {
-                await _logService.WriteWarningAsync($"Cleaning up sing-box PID {_currentProcess.Id} after start failure.", cancellationToken);
+                var pid = TryGetProcessId(_currentProcess, out var trackedPid)
+                    ? trackedPid.ToString(CultureInfo.InvariantCulture)
+                    : "unknown";
+                await _logService.WriteWarningAsync($"Cleaning up sing-box PID {pid} after start failure.", cancellationToken);
                 await ForceTerminateProcessAsync(_currentProcess, "start failure cleanup", cancellationToken);
             }
         }
@@ -507,12 +520,14 @@ public sealed class SingBoxManager
         {
             await _logService.WriteWarningAsync($"Fatal startup marker detected, forcing sing-box shutdown: {fatalMessage}", CancellationToken.None);
 
-            if (process.HasExited)
+            if (!IsProcessAlive(process))
             {
+                await CleanupManagedProcessesAsync("fatal startup marker orphan cleanup", CancellationToken.None);
                 return;
             }
 
             await ForceTerminateProcessAsync(process, "fatal startup marker", CancellationToken.None);
+            await CleanupManagedProcessesAsync("fatal startup marker orphan cleanup", CancellationToken.None);
         }
         catch (Exception ex)
         {
@@ -522,12 +537,16 @@ public sealed class SingBoxManager
 
     private async Task ForceTerminateProcessAsync(Process process, string reason, CancellationToken cancellationToken)
     {
-        if (process.HasExited)
+        if (!IsProcessAlive(process))
         {
             return;
         }
 
-        var pid = process.Id;
+        if (!TryGetProcessId(process, out var pid))
+        {
+            await _logService.WriteWarningAsync($"Process handle was no longer associated while attempting to terminate sing-box due to {reason}.", cancellationToken);
+            return;
+        }
 
         try
         {
@@ -559,6 +578,66 @@ public sealed class SingBoxManager
         }
 
         await _logService.WriteWarningAsync($"sing-box PID {pid} still appears alive after taskkill fallback.", cancellationToken);
+    }
+
+    public async Task StopForServiceShutdownAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (IsTrackedProcessAlive())
+            {
+                await _logService.WriteInfoAsync("Service shutdown requested, stopping managed sing-box process.", cancellationToken);
+                await StopAsync(cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            await _logService.WriteErrorAsync("Graceful sing-box stop during service shutdown failed.", ex, cancellationToken);
+        }
+
+        await CleanupManagedProcessesAsync("service shutdown cleanup", cancellationToken);
+    }
+
+    public async Task CleanupManagedProcessesAsync(string reason, CancellationToken cancellationToken)
+    {
+        var trackedProcess = _currentProcess;
+        if (IsProcessAlive(trackedProcess))
+        {
+            await ForceTerminateProcessAsync(trackedProcess!, reason, cancellationToken);
+        }
+
+        foreach (var process in Process.GetProcessesByName("sing-box"))
+        {
+            try
+            {
+                if (!IsManagedSingBoxProcess(process))
+                {
+                    continue;
+                }
+
+                if (!TryGetProcessId(process, out var pid))
+                {
+                    continue;
+                }
+
+                await _logService.WriteWarningAsync($"Found managed orphan sing-box PID {pid} during {reason}.", cancellationToken);
+                await ForceTerminateProcessAsync(process, reason, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                await _logService.WriteErrorAsync("Failed while cleaning up orphan sing-box process.", ex, cancellationToken);
+            }
+            finally
+            {
+                process.Dispose();
+            }
+        }
+
+        if (_currentProcess is not null && !IsProcessAlive(_currentProcess))
+        {
+            _currentProcess.Dispose();
+            _currentProcess = null;
+        }
     }
 
     private async Task ForceTerminateWithTaskKillAsync(int pid, CancellationToken cancellationToken)
@@ -621,6 +700,88 @@ public sealed class SingBoxManager
         return string.IsNullOrWhiteSpace(value) ? value : AnsiEscapeRegex.Replace(value, string.Empty);
     }
 
+    private static bool IsProcessAlive(Process? process)
+    {
+        if (process is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            return !process.HasExited;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+    }
+
+    private bool IsTrackedProcessAlive() => IsProcessAlive(_currentProcess);
+
+    private static bool TryGetProcessId(Process process, out int pid)
+    {
+        try
+        {
+            pid = process.Id;
+            return true;
+        }
+        catch (InvalidOperationException)
+        {
+            pid = 0;
+            return false;
+        }
+    }
+
+    private static IntPtr TryGetMainWindowHandle(Process process)
+    {
+        try
+        {
+            return process.MainWindowHandle;
+        }
+        catch (InvalidOperationException)
+        {
+            return IntPtr.Zero;
+        }
+    }
+
+    private static void TryCloseMainWindow(Process process)
+    {
+        try
+        {
+            process.CloseMainWindow();
+        }
+        catch (InvalidOperationException)
+        {
+        }
+    }
+
+    private static string? TryGetProcessPath(Process process)
+    {
+        try
+        {
+            return process.MainModule?.FileName;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static bool IsManagedSingBoxProcess(Process process)
+    {
+        var processPath = TryGetProcessPath(process);
+        if (string.IsNullOrWhiteSpace(processPath))
+        {
+            return false;
+        }
+
+        return string.Equals(
+            Path.GetFullPath(processPath),
+            Path.GetFullPath(AppPaths.SingBoxExecutablePath),
+            StringComparison.OrdinalIgnoreCase);
+    }
+
     private static async Task<bool> WaitForExitAsync(Process process, int milliseconds, CancellationToken cancellationToken)
     {
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -632,7 +793,11 @@ public sealed class SingBoxManager
         }
         catch (OperationCanceledException)
         {
-            return process.HasExited;
+            return IsProcessAlive(process) is false;
+        }
+        catch (InvalidOperationException)
+        {
+            return true;
         }
     }
 }
