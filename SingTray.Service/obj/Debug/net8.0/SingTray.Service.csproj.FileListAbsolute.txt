@@ -51,3 +51,4 @@ C:\Users\long\Documents\SingTray\SingTray.Service\obj\Debug\net8.0\refint\SingTr
 C:\Users\long\Documents\SingTray\SingTray.Service\obj\Debug\net8.0\SingTray.Service.pdb
 C:\Users\long\Documents\SingTray\SingTray.Service\obj\Debug\net8.0\SingTray.Service.genruntimeconfig.cache
 C:\Users\long\Documents\SingTray\SingTray.Service\obj\Debug\net8.0\ref\SingTray.Service.dll
+C:\Users\long\Documents\SingTray\SingTray.Service\obj\Debug\net8.0\SingTray.Service.sourcelink.json

@@ -16,3 +16,6 @@ C:\Users\long\Documents\SingTray\SingTray.Client\obj\Debug\net8.0-windows\refint
 C:\Users\long\Documents\SingTray\SingTray.Client\obj\Debug\net8.0-windows\SingTray.Client.pdb
 C:\Users\long\Documents\SingTray\SingTray.Client\obj\Debug\net8.0-windows\SingTray.Client.genruntimeconfig.cache
 C:\Users\long\Documents\SingTray\SingTray.Client\obj\Debug\net8.0-windows\ref\SingTray.Client.dll
+C:\Users\long\Documents\SingTray\SingTray.Client\obj\Debug\net8.0-windows\SingTray.Client.sourcelink.json
+C:\Users\long\Documents\SingTray\SingTray.Client\bin\Debug\net8.0-windows\System.ServiceProcess.ServiceController.dll
+C:\Users\long\Documents\SingTray\SingTray.Client\bin\Debug\net8.0-windows\runtimes\win\lib\net8.0\System.ServiceProcess.ServiceController.dll

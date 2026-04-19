@@ -1,16 +1,26 @@
+using System.Threading;
+
 namespace SingTray.Client;
 
-static class Program
+internal static class Program
 {
-    /// <summary>
-    ///  The main entry point for the application.
-    /// </summary>
     [STAThread]
-    static void Main()
+    private static void Main()
     {
-        // To customize application configuration such as set high DPI settings or default font,
-        // see https://aka.ms/applicationconfiguration.
+        using var mutex = new Mutex(initiallyOwned: true, @"Global\SingTray.Client.Singleton", out var createdNew);
+        if (!createdNew)
+        {
+            return;
+        }
+
         ApplicationConfiguration.Initialize();
-        Application.Run(new Form1());
-    }    
+        Application.SetCompatibleTextRenderingDefault(false);
+
+        using var pipeClient = new PipeClient();
+        using var importService = new FileImportService();
+        using var desiredStateStore = new DesiredStateStore();
+        using var clientLogService = new ClientLogService();
+        using var context = new TrayApplicationContext(pipeClient, importService, desiredStateStore, clientLogService);
+        Application.Run(context);
+    }
 }

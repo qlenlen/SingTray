@@ -9,3 +9,4 @@ C:\Users\long\Documents\SingTray\SingTray.Shared\obj\Debug\net8.0\SingTray.Share
 C:\Users\long\Documents\SingTray\SingTray.Shared\obj\Debug\net8.0\refint\SingTray.Shared.dll
 C:\Users\long\Documents\SingTray\SingTray.Shared\obj\Debug\net8.0\SingTray.Shared.pdb
 C:\Users\long\Documents\SingTray\SingTray.Shared\obj\Debug\net8.0\ref\SingTray.Shared.dll
+C:\Users\long\Documents\SingTray\SingTray.Shared\obj\Debug\net8.0\SingTray.Shared.sourcelink.json

@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "Nm3oMiRZQVc=",
+  "dgSpecHash": "xhmIWcfq5lw=",
   "success": true,
   "projectFilePath": "C:\\Users\\long\\Documents\\SingTray\\SingTray.Service\\SingTray.Service.csproj",
   "expectedPackageFiles": [
@@ -33,7 +33,13 @@
     "C:\\Users\\long\\.nuget\\packages\\microsoft.extensions.options.configurationextensions\\8.0.0\\microsoft.extensions.options.configurationextensions.8.0.0.nupkg.sha512",
     "C:\\Users\\long\\.nuget\\packages\\microsoft.extensions.primitives\\8.0.0\\microsoft.extensions.primitives.8.0.0.nupkg.sha512",
     "C:\\Users\\long\\.nuget\\packages\\system.diagnostics.eventlog\\8.0.1\\system.diagnostics.eventlog.8.0.1.nupkg.sha512",
-    "C:\\Users\\long\\.nuget\\packages\\system.serviceprocess.servicecontroller\\8.0.1\\system.serviceprocess.servicecontroller.8.0.1.nupkg.sha512"
+    "C:\\Users\\long\\.nuget\\packages\\system.io.pipes.accesscontrol\\6.0.0-preview.5.21301.5\\system.io.pipes.accesscontrol.6.0.0-preview.5.21301.5.nupkg.sha512",
+    "C:\\Users\\long\\.nuget\\packages\\system.security.accesscontrol\\6.0.0-preview.5.21301.5\\system.security.accesscontrol.6.0.0-preview.5.21301.5.nupkg.sha512",
+    "C:\\Users\\long\\.nuget\\packages\\system.security.principal.windows\\6.0.0-preview.5.21301.5\\system.security.principal.windows.6.0.0-preview.5.21301.5.nupkg.sha512",
+    "C:\\Users\\long\\.nuget\\packages\\system.serviceprocess.servicecontroller\\8.0.1\\system.serviceprocess.servicecontroller.8.0.1.nupkg.sha512",
+    "C:\\Users\\long\\.nuget\\packages\\microsoft.netcore.app.runtime.win-x64\\8.0.22\\microsoft.netcore.app.runtime.win-x64.8.0.22.nupkg.sha512",
+    "C:\\Users\\long\\.nuget\\packages\\microsoft.windowsdesktop.app.runtime.win-x64\\8.0.22\\microsoft.windowsdesktop.app.runtime.win-x64.8.0.22.nupkg.sha512",
+    "C:\\Users\\long\\.nuget\\packages\\microsoft.aspnetcore.app.runtime.win-x64\\8.0.22\\microsoft.aspnetcore.app.runtime.win-x64.8.0.22.nupkg.sha512"
   ],
   "logs": []
 }
