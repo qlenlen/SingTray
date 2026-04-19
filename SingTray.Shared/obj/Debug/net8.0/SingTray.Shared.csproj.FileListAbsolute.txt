@@ -1,0 +1,11 @@
+C:\Users\long\Documents\SingTray\SingTray.Shared\bin\Debug\net8.0\SingTray.Shared.deps.json
+C:\Users\long\Documents\SingTray\SingTray.Shared\bin\Debug\net8.0\SingTray.Shared.dll
+C:\Users\long\Documents\SingTray\SingTray.Shared\bin\Debug\net8.0\SingTray.Shared.pdb
+C:\Users\long\Documents\SingTray\SingTray.Shared\obj\Debug\net8.0\SingTray.Shared.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\long\Documents\SingTray\SingTray.Shared\obj\Debug\net8.0\SingTray.Shared.AssemblyInfoInputs.cache
+C:\Users\long\Documents\SingTray\SingTray.Shared\obj\Debug\net8.0\SingTray.Shared.AssemblyInfo.cs
+C:\Users\long\Documents\SingTray\SingTray.Shared\obj\Debug\net8.0\SingTray.Shared.csproj.CoreCompileInputs.cache
+C:\Users\long\Documents\SingTray\SingTray.Shared\obj\Debug\net8.0\SingTray.Shared.dll
+C:\Users\long\Documents\SingTray\SingTray.Shared\obj\Debug\net8.0\refint\SingTray.Shared.dll
+C:\Users\long\Documents\SingTray\SingTray.Shared\obj\Debug\net8.0\SingTray.Shared.pdb
+C:\Users\long\Documents\SingTray\SingTray.Shared\obj\Debug\net8.0\ref\SingTray.Shared.dll

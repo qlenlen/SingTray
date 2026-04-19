@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SingTray.Shared", "SingTray.Shared\SingTray.Shared.csproj", "{C22688F5-D770-4A07-9571-CDDA330E7B70}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SingTray.Service", "SingTray.Service\SingTray.Service.csproj", "{4DBF3570-8C26-423E-B9D9-6B830C31E774}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SingTray.Client", "SingTray.Client\SingTray.Client.csproj", "{9E423E45-E45B-45B7-9433-718FF57871B4}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{C22688F5-D770-4A07-9571-CDDA330E7B70}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C22688F5-D770-4A07-9571-CDDA330E7B70}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C22688F5-D770-4A07-9571-CDDA330E7B70}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C22688F5-D770-4A07-9571-CDDA330E7B70}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4DBF3570-8C26-423E-B9D9-6B830C31E774}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4DBF3570-8C26-423E-B9D9-6B830C31E774}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4DBF3570-8C26-423E-B9D9-6B830C31E774}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4DBF3570-8C26-423E-B9D9-6B830C31E774}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9E423E45-E45B-45B7-9433-718FF57871B4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9E423E45-E45B-45B7-9433-718FF57871B4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9E423E45-E45B-45B7-9433-718FF57871B4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9E423E45-E45B-45B7-9433-718FF57871B4}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
