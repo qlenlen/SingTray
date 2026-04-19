@@ -1,8 +1,29 @@
-bin/
-obj/
-.vs/
-*.user
-*.suo
-Installer/Output/
+# Build outputs
+[Bb]in/
+[Oo]bj/
 publish/
-staging/
+artifacts/
+
+# IDE / user state
+.vs/
+.vscode/
+*.user
+*.rsuser
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Logs / temp
+*.log
+*.tmp
+*.cache
+
+# Installer-generated outputs
+Installer/artifacts/
+Installer/output/
+Installer/Output/
+Installer/staging/
+
+# Local app/runtime state that should never be committed
+SingTray.Client/client.log
+SingTray.Service/*.log
