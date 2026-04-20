@@ -4,6 +4,8 @@
 #define MyAppExeName "SingTray.Client.exe"
 #define MyServiceExeName "SingTray.Service.exe"
 #define MyServiceName "SingTray.Service"
+#define MyAppIcon "..\SingTray.Client\Assets\SingTray.ico"
+#define MyWizardSmallImage "..\SingTray.Client\Assets\SingTray.png"
 
 [Setup]
 AppId={{E11D4A17-4B8A-4AF9-9708-8D750F3121EA}
@@ -14,10 +16,11 @@ UninstallDisplayName=SingTray
 DefaultDirName={autopf}\SingTray
 DefaultGroupName={#MyAppName}
 PrivilegesRequired=admin
-PrivilegesRequiredOverridesAllowed=dialog
+PrivilegesRequiredOverridesAllowed=commandline
 DisableProgramGroupPage=yes
 UsePreviousAppDir=no
 UninstallDisplayIcon={app}\{#MyAppExeName}
+SetupIconFile={#MyAppIcon}
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
@@ -25,6 +28,7 @@ ArchitecturesInstallIn64BitMode=x64compatible
 ArchitecturesAllowed=x64compatible
 OutputDir=output
 OutputBaseFilename=SingTray-Setup
+WizardSmallImageFile={#MyWizardSmallImage}
 
 [Dirs]
 Name: "C:\ProgramData\SingTray"
@@ -52,6 +56,9 @@ Filename: "{sys}\sc.exe"; Parameters: "stop ""{#MyServiceName}"""; Flags: runhid
 Filename: "{sys}\sc.exe"; Parameters: "delete ""{#MyServiceName}"""; Flags: runhidden waituntilterminated skipifdoesntexist; RunOnceId: "DeleteSingTrayService"
 
 [Code]
+var
+  ShowOptionsPage: Boolean;
+
 function ServiceExists(const ServiceName: string): Boolean;
 var
   ResultCode: Integer;
@@ -122,5 +129,39 @@ begin
   begin
     StopExistingClient();
     StopExistingService();
+  end;
+end;
+
+function ShouldSkipPage(PageID: Integer): Boolean;
+begin
+  if PageID = wpSelectDir then
+    Result := not ShowOptionsPage
+  else
+    Result := False;
+end;
+
+function BackButtonClick(CurPageID: Integer): Boolean;
+begin
+  if CurPageID = wpReady then
+    ShowOptionsPage := True;
+
+  Result := True;
+end;
+
+procedure CurPageChanged(CurPageID: Integer);
+begin
+  WizardForm.Caption := '{#MyAppName} Setup';
+  WizardForm.WelcomeLabel1.Caption := '{#MyAppName}';
+  WizardForm.WelcomeLabel2.Caption := 'Install SingTray for this device.';
+
+  if CurPageID = wpReady then
+  begin
+    WizardForm.BackButton.Caption := '&Options';
+    WizardForm.NextButton.Caption := '&Install';
+  end
+  else
+  begin
+    WizardForm.BackButton.Caption := SetupMessage(msgButtonBack);
+    WizardForm.NextButton.Caption := SetupMessage(msgButtonNext);
   end;
 end;
