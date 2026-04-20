@@ -1,11 +1,33 @@
+#ifndef MyAppName
 #define MyAppName "SingTray"
+#endif
+#ifndef MyAppVersion
 #define MyAppVersion "0.1.0"
+#endif
+#ifndef MyAppPublisher
 #define MyAppPublisher "SingTray"
+#endif
+#ifndef MyAppExeName
 #define MyAppExeName "SingTray.Client.exe"
+#endif
+#ifndef MyServiceExeName
 #define MyServiceExeName "SingTray.Service.exe"
+#endif
+#ifndef MyServiceName
 #define MyServiceName "SingTray.Service"
+#endif
+#ifndef MyAppIcon
 #define MyAppIcon "..\SingTray.Client\Assets\SingTray.ico"
+#endif
+#ifndef MyWizardSmallImage
 #define MyWizardSmallImage "..\SingTray.Client\Assets\SingTray.png"
+#endif
+#ifndef MyOutputDir
+#define MyOutputDir "output"
+#endif
+#ifndef MyOutputBaseFilename
+#define MyOutputBaseFilename "SingTray-Setup"
+#endif
 
 [Setup]
 AppId={{E11D4A17-4B8A-4AF9-9708-8D750F3121EA}
@@ -26,8 +48,8 @@ SolidCompression=yes
 WizardStyle=modern
 ArchitecturesInstallIn64BitMode=x64compatible
 ArchitecturesAllowed=x64compatible
-OutputDir=output
-OutputBaseFilename=SingTray-Setup
+OutputDir={#MyOutputDir}
+OutputBaseFilename={#MyOutputBaseFilename}
 WizardSmallImageFile={#MyWizardSmallImage}
 
 [Dirs]
