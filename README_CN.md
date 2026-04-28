@@ -1,234 +1,145 @@
-﻿# SingTray
+# SingTray
 
-语言：
+语言：[English](README.md) | [中文](README_CN.md)
 
-- [English](README.md)
-- [中文](README_CN.md)
+SingTray 是一个 Windows 托盘程序，用来控制 `sing-box`。
 
-SingTray 是一个面向 Windows 的 `sing-box` 桌面控制器，采用明确的分层架构：
+它通过 Windows Service 运行 `sing-box`，托盘菜单负责启动、停止、导入和查看状态。
 
-- `SingTray.Service`：真正的 Windows Service，是唯一真状态源
-- `SingTray.Client`：普通用户态托盘 GUI，负责日常交互
-- `SingTray.Shared`：共享协议、模型、常量和路径约定
+## 快速开始
 
-它的目标不是一个临时小工具，而是一个结构清晰、职责分离、可安装、可维护的正式桌面程序。
+1. 安装 SingTray。
+2. 从开始菜单启动 `SingTray`。
+3. 右键托盘图标。
+4. 使用 `Import Core...` 导入 `sing-box` 内核 zip。
+5. 使用 `Import Config...` 导入你的 JSON 配置文件。
+6. 点击 `Start` 启动。
 
-## 如何使用
+`sing-box` 官方地址：
 
-1. 先从 `sing-box` 官方仓库下载 Windows x64 内核压缩包：
-   `https://github.com/sagernet/sing-box`
-2. 从开始菜单启动 `SingTray`，或等待它在登录后自动启动。
-3. 右键系统托盘图标，点击 `Import Core`，直接导入下载好的 zip 压缩包。
-4. 点击 `Import Config`，导入你的 `config.json`。
-5. 点击第一行状态项切换运行状态：
-   - `SingTray - Stopped` -> Start
-   - `SingTray - Running` -> Stop
-   - `SingTray - Error` -> Start 或 Restart
-   - `SingTray - Starting` / `SingTray - Stopping` -> 禁用
-6. 点击 `Exit` 关闭托盘程序。客户端会记录退出前 `sing-box` 是否处于运行状态，并在下次托盘启动时尝试恢复一次之前的状态。
+```text
+https://github.com/SagerNet/sing-box
+```
 
-默认行为：
+## 托盘菜单
 
-- `SingTray.Service` 会随 Windows 自动启动
-- `SingTray.Client` 会在用户登录后自动启动
-- 全新安装后，`sing-box` 默认不会自动启动，需手动点击 Start
-- 导入 Core / Config 后不会自动启动或自动重启 `sing-box`
-- 如果 `sing-box` 正在运行，导入会被拒绝，并提示：
-  `Please stop sing-box first.`
+![SingTray 托盘菜单](docs/images/tray-menu.png)
 
-## 截图
+Status：
 
-### 托盘菜单
+- `Running`：sing-box 正在运行
+- `Stopped`：sing-box 已停止
+- `Starting`：正在启动
+- `Stopping`：正在停止
+- `Error`：启动或运行失败
+- `Unavailable`：托盘无法连接 service
 
-![SingTray tray menu](docs/images/tray-menu.png)
+Core：
 
-### 数据目录
+- 版本号：内核可用
+- `Missing`：未导入内核
+- `Error`：内核校验失败
+- `Ready`：内核存在，但版本文本不可用
 
-![SingTray data folder](docs/images/data-folder.png)
+Config：
 
-## 托盘状态说明
+- 文件名：配置可用
+- `Unconfigured`：未导入配置
+- `Waiting`：内核缺失或不可用
+- `Error`：配置校验失败
 
-顶部运行状态：
+## 导入规则
 
-- `Running`：`sing-box` 当前正在运行
-- `Stopped`：`sing-box` 当前已停止
-- `Starting`：正在执行启动请求
-- `Stopping`：正在执行停止请求
-- `Error`：最近一次启动或运行失败
-- `Unavailable`：托盘当前无法连接 `SingTray.Service`
+- sing-box 运行、启动、停止时不能导入。
+- 导入配置会保留原文件名。
+- 菜单显示的配置名和实际保存的配置文件名一致。
+- 导入结束后会清理 `tmp\imports` 临时文件。
+- 导入 Core 或 Config 不会自动启动或重启 sing-box。
 
-导入状态提示：
+## 日志
 
-- `Import Config` 正常时会显示当前配置文件名
-- `Import Config` 也可能显示 `Unconfigured`、`Waiting`、`Error`
-- `Import Core` 正常时会显示当前导入的 Core 版本号
-- `Import Core` 也可能显示 `Missing` 或 `Error`
+日志目录：
 
-## 安装位置
+```text
+C:\ProgramData\SingTray\logs\
+```
 
-默认安装和数据路径：
+文件：
 
-- 程序目录：`C:\Program Files\SingTray\`
-- 数据目录：`C:\ProgramData\SingTray\`
+- `app.log`：SingTray service 自身事件
+- `singbox.log`：sing-box 原始 stdout/stderr 输出
 
-安装后的行为：
+规则：
 
-- 注册 `SingTray.Service` 为自动启动服务
-- 写入当前用户登录启动项：
-  `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`
-- 创建开始菜单快捷方式 `SingTray`
+- `app.log` 在 service 启动时重建。
+- `singbox.log` 在 sing-box 启动时重建。
+- `singbox.log` 保留 sing-box 原始日志行，不额外添加 SingTray 时间戳。
+- sing-box 日志会缓冲写入，每 30 秒刷新一次。
+- sing-box 停止或退出时会立即刷新日志。
 
-## 数据目录结构
+## 数据目录
+
+默认数据目录：
+
+```text
+C:\ProgramData\SingTray\
+```
+
+结构：
 
 ```text
 C:\ProgramData\SingTray\
   core\
     sing-box.exe
   configs\
-    config.json
+    <导入的配置文件名>.json
   logs\
     app.log
     singbox.log
-  tmp\
-  tmp\imports\
   state\
     state.json
+  tmp\
+    imports\
 ```
 
-文件说明：
+托盘菜单点击 `Open Data Folder` 可以打开该目录。
 
-- `app.log`：Service 自身事件日志
-- `singbox.log`：`sing-box` 的 stdout/stderr
-- `state.json`：持久化运行状态、Core 状态、Config 状态
+## 安装内容
 
-## 导入规则
-
-### Import Config
-
-流程：
-
-1. Tray 先把选中的文件复制到 `tmp\imports\`
-2. Service 对文件执行校验
-3. 校验包括 JSON 解析，以及可用时调用 `sing-box check`
-4. 校验成功后原子替换 `configs\config.json`
-5. 校验失败时保持正式配置不变
-
-### Import Core
-
-流程：
-
-1. Tray 先把 zip 复制到 `tmp\imports\`
-2. Service 解压到临时目录
-3. 检查是否存在 `sing-box.exe`
-4. 在临时目录中执行 `sing-box.exe version`
-5. 校验成功后原子替换整个 `core\` 目录
-6. 校验失败时保持正式 Core 不变
-
-当前版本按“解压后的内容和可执行行为”做校验，不依赖原 zip 文件名。
-
-## 日志
-
-日志位置：
-
-- `C:\ProgramData\SingTray\logs\app.log`
-- `C:\ProgramData\SingTray\logs\singbox.log`
-
-当前日志策略：
-
-- `app.log` 在每次 Service 启动时覆盖重建
-- `singbox.log` 在每次 Service 启动时覆盖重建
-- 默认不记录高频 `get_status` 轮询
-- 日志以关键事件、状态变化和真实错误为主
-
-## 项目结构
+默认安装目录：
 
 ```text
-SingTray.sln
-  SingTray.Shared/
-    共享协议、DTO、枚举、路径约定
-  SingTray.Service/
-    Windows Service、Pipe Server、导入逻辑、SingBox 管理
-  SingTray.Client/
-    WinForms Tray、Pipe Client、轮询器、菜单逻辑
-  Installer/
-    Inno Setup 脚本和发布辅助脚本
+C:\Program Files\SingTray\
 ```
 
-关键文件：
+安装后：
 
-- `SingTray.Shared/AppPaths.cs`
-- `SingTray.Shared/PipeContracts.cs`
-- `SingTray.Service/Services/SingBoxManager.cs`
-- `SingTray.Service/PipeServer.cs`
-- `SingTray.Client/TrayApplicationContext.cs`
-- `Installer/setup.iss`
-- `Installer/build-release.ps1`
+- `SingTray.Service` 作为 Windows Service 运行。
+- `SingTray.Client` 作为托盘程序运行。
+- service 随 Windows 启动。
+- 托盘程序随用户登录启动。
 
-## 如何编译
+## 编译
 
-编译整个解决方案：
+编译解决方案：
 
 ```powershell
 dotnet build SingTray.sln
 ```
 
-开发时运行 Tray：
-
-```powershell
-dotnet run --project .\SingTray.Client\SingTray.Client.csproj
-```
-
-开发时运行 Service：
-
-```powershell
-dotnet run --project .\SingTray.Service\SingTray.Service.csproj
-```
-
-## 如何发布
-
-当前发布脚本会先分别输出 Client 和 Service，再合并到 staging 目录，避免多项目 publish 相互覆盖。
-
-执行：
+构建安装包：
 
 ```powershell
 .\Installer\build-release.ps1 -Version v0.1.0 -Mode self-contained
-```
-
-生成目录：
-
-- `Installer\artifacts\client\`
-- `Installer\artifacts\service\`
-- `Installer\staging\`
-
-当前发布参数：
-
-- `Release`
-- `win-x64`
-- `self-contained = true`
-
-## 如何打包安装器
-
-统一使用 `build-release.ps1` 作为唯一入口：
-
-```powershell
 .\Installer\build-release.ps1 -Version v0.1.0 -Mode framework
 ```
 
-输出文件：
+安装包输出：
 
-- `Installer\output\self-contained\`
-- `Installer\output\framework\`
-
-## 开发说明
-
-- 进程控制必须留在 `SingTray.Service`
-- Tray 只做 UI 和 IPC 客户端
-- Pipe 名称和协议统一放在 `SingTray.Shared`
-- 不要把状态控制权搬到 Client
-- 不要把 Named Pipe 改成 localhost HTTP
+```text
+Installer\output\
+```
 
 ## 许可证
 
-本项目采用 MIT License，详见 [LICENSE](LICENSE)。
-
-
+MIT License，详见 [LICENSE](LICENSE)。
