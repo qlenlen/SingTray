@@ -56,11 +56,6 @@ public sealed class StatusChangeRequest
     public long? LastSeenRevision { get; set; }
 }
 
-public sealed class StartRequest
-{
-    public string? LastError { get; set; }
-}
-
 public sealed class OperationResult
 {
     public bool Success { get; set; }

@@ -109,7 +109,7 @@ public sealed class TrayApplicationContext : ApplicationContext
 
             if (shouldBeRunning && !_lastStatus.SingBoxRunning)
             {
-                await ExecuteOperationAsync(() => _pipeClient.StartAsync(BuildStartRequest(), CancellationToken.None), showMessageOnSuccess: false);
+                await ExecuteOperationAsync(() => _pipeClient.StartAsync(CancellationToken.None), showMessageOnSuccess: false);
                 await _statusWatcher.RefreshNowAsync();
             }
             else if (!shouldBeRunning && _lastStatus.SingBoxRunning)
@@ -168,12 +168,11 @@ public sealed class TrayApplicationContext : ApplicationContext
         else if (_lastStatus.RunState == RunState.Error)
         {
             var restartRequired = _lastStatus.SingBoxRunning;
-            var startRequest = BuildStartRequest();
             await _desiredStateStore.WriteAsync(true);
             ApplyLocalRunState(RunState.Starting);
             var started = restartRequired
-                ? await ExecuteOperationAsync(() => _pipeClient.RestartAsync(startRequest, CancellationToken.None))
-                : await ExecuteOperationAsync(() => _pipeClient.StartAsync(startRequest, CancellationToken.None));
+                ? await ExecuteOperationAsync(() => _pipeClient.RestartAsync(CancellationToken.None))
+                : await ExecuteOperationAsync(() => _pipeClient.StartAsync(CancellationToken.None));
             if (started)
             {
                 ApplyLocalRunState(RunState.Running);
@@ -181,10 +180,9 @@ public sealed class TrayApplicationContext : ApplicationContext
         }
         else
         {
-            var startRequest = BuildStartRequest();
             await _desiredStateStore.WriteAsync(true);
             ApplyLocalRunState(RunState.Starting);
-            var started = await ExecuteOperationAsync(() => _pipeClient.StartAsync(startRequest, CancellationToken.None));
+            var started = await ExecuteOperationAsync(() => _pipeClient.StartAsync(CancellationToken.None));
             if (started)
             {
                 ApplyLocalRunState(RunState.Running);
@@ -454,14 +452,6 @@ public sealed class TrayApplicationContext : ApplicationContext
         }
 
         return ex.Message;
-    }
-
-    private StartRequest BuildStartRequest()
-    {
-        return new StartRequest
-        {
-            LastError = _lastStatus?.LastError
-        };
     }
 
     private static bool IsExpectedExitException(Exception ex)

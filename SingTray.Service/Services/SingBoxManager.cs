@@ -20,7 +20,6 @@ public sealed class SingBoxManager
     private Process? _currentProcess;
     private string? _lastStdErrLine;
     private bool _stopRequested;
-    private int _fatalKillTriggered;
 
     public SingBoxManager(ServiceState serviceState, LogService logService)
     {
@@ -63,32 +62,13 @@ public sealed class SingBoxManager
     public Task<ConfigInfo> ValidateConfigFileAsync(string configPath, CancellationToken cancellationToken) =>
         ValidateConfigPathAsync(configPath, cancellationToken);
 
-    public async Task<OperationResult> StartAsync(StartRequest? startRequest, CancellationToken cancellationToken)
+    public async Task<OperationResult> StartAsync(CancellationToken cancellationToken)
     {
         await _gate.WaitAsync(cancellationToken);
         try
         {
-            if (IsTrackedProcessAlive())
-            {
-                if (!string.IsNullOrWhiteSpace(startRequest?.LastError) &&
-                    startRequest.LastError.Contains("FATAL", StringComparison.OrdinalIgnoreCase))
-                {
-                    await _logService.WriteWarningAsync("Previous lastError contains FATAL, forcing cleanup before continuing.", cancellationToken);
-                    await CleanupCurrentProcessAsync(cancellationToken);
-                }
-                else
-                {
-                    return OperationResult.Ok("sing-box is already running.");
-                }
-            }
-
-            if (!string.IsNullOrWhiteSpace(startRequest?.LastError) &&
-                startRequest.LastError.Contains("FATAL", StringComparison.OrdinalIgnoreCase) &&
-                _currentProcess is not null)
-            {
-                await _logService.WriteWarningAsync("Start request carried FATAL lastError, cleaning up residual sing-box process.", cancellationToken);
-                await CleanupCurrentProcessAsync(cancellationToken);
-            }
+            await CleanupManagedProcessesAsync("start pre-cleanup", cancellationToken);
+            await _logService.ResetSingBoxLogAsync(cancellationToken);
 
             if (IsTrackedProcessAlive())
             {
@@ -118,8 +98,6 @@ public sealed class SingBoxManager
                 return await FailStartAsync(config.ValidationMessage ?? "Config invalid", cancellationToken);
             }
 
-            await _logService.ResetSingBoxLogAsync(cancellationToken);
-
             await _serviceState.UpdateAsync(record =>
             {
                 record.RunState = RunState.Starting;
@@ -127,7 +105,6 @@ public sealed class SingBoxManager
             }, cancellationToken);
 
             _lastStdErrLine = null;
-            Interlocked.Exchange(ref _fatalKillTriggered, 0);
             var process = BuildProcess(AppPaths.SingBoxExecutablePath, SingBoxConstants.BuildRunArguments(activeConfigPath), AppPaths.CoreDirectory);
             process.EnableRaisingEvents = true;
             process.OutputDataReceived += (_, args) =>
@@ -144,10 +121,6 @@ public sealed class SingBoxManager
                     var cleaned = StripAnsi(args.Data);
                     _lastStdErrLine = cleaned;
                     _ = _logService.WriteSingBoxOutputAsync("stderr", cleaned, CancellationToken.None);
-                    if (cleaned.Contains("FATAL", StringComparison.OrdinalIgnoreCase))
-                    {
-                        _ = ForceKillOnFatalAsync(process, cleaned);
-                    }
                 }
             };
             process.Exited += async (_, _) => await OnProcessExitedAsync(process);
@@ -253,7 +226,7 @@ public sealed class SingBoxManager
         }
     }
 
-    public async Task<OperationResult> RestartAsync(StartRequest? startRequest, CancellationToken cancellationToken)
+    public async Task<OperationResult> RestartAsync(CancellationToken cancellationToken)
     {
         var stop = await StopAsync(cancellationToken);
         if (!stop.Success)
@@ -261,7 +234,7 @@ public sealed class SingBoxManager
             return stop;
         }
 
-        return await StartAsync(startRequest, cancellationToken);
+        return await StartAsync(cancellationToken);
     }
 
     private async Task<ConfigInfo> ValidateConfigPathAsync(string configPath, CancellationToken cancellationToken)
@@ -528,32 +501,6 @@ public sealed class SingBoxManager
         {
             _currentProcess.Dispose();
             _currentProcess = null;
-        }
-    }
-
-    private async Task ForceKillOnFatalAsync(Process process, string fatalMessage)
-    {
-        if (Interlocked.Exchange(ref _fatalKillTriggered, 1) == 1)
-        {
-            return;
-        }
-
-        try
-        {
-            await _logService.WriteWarningAsync($"Fatal startup marker detected, forcing sing-box shutdown: {fatalMessage}", CancellationToken.None);
-
-            if (!IsProcessAlive(process))
-            {
-                await CleanupManagedProcessesAsync("fatal startup marker orphan cleanup", CancellationToken.None);
-                return;
-            }
-
-            await ForceTerminateProcessAsync(process, "fatal startup marker", CancellationToken.None);
-            await CleanupManagedProcessesAsync("fatal startup marker orphan cleanup", CancellationToken.None);
-        }
-        catch (Exception ex)
-        {
-            await _logService.WriteErrorAsync("Failed to force-kill sing-box after fatal startup marker.", ex, CancellationToken.None);
         }
     }
 

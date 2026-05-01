@@ -26,9 +26,9 @@ public sealed class PipeCommandHandler
                 "ping" => PipeResponse.FromSuccess(new PingInfo()),
                 "get_status" => PipeResponse.FromSuccess(await _singBoxManager.GetStatusAsync(cancellationToken)),
                 "wait_status_change" => PipeResponse.FromSuccess(await HandleWaitStatusChangeAsync(request, cancellationToken)),
-                "start" => ToResponse(await HandleStartAsync(request, cancellationToken)),
+                "start" => ToResponse(await HandleStartAsync(cancellationToken)),
                 "stop" => ToResponse(await HandleStopAsync(cancellationToken)),
-                "restart" => ToResponse(await HandleRestartAsync(request, cancellationToken)),
+                "restart" => ToResponse(await HandleRestartAsync(cancellationToken)),
                 "import_config" => ToResponse(await HandleImportConfigAsync(request, cancellationToken)),
                 "import_core" => ToResponse(await HandleImportCoreAsync(request, cancellationToken)),
                 "get_paths" => PipeResponse.FromSuccess(new PathInfo()),
@@ -42,10 +42,10 @@ public sealed class PipeCommandHandler
         }
     }
 
-    private async Task<OperationResult> HandleStartAsync(PipeRequest request, CancellationToken cancellationToken)
+    private async Task<OperationResult> HandleStartAsync(CancellationToken cancellationToken)
     {
         await _logService.WriteInfoAsync("Start requested.", cancellationToken);
-        return await _singBoxManager.StartAsync(ReadStartRequest(request), cancellationToken);
+        return await _singBoxManager.StartAsync(cancellationToken);
     }
 
     private async Task<StatusInfo> HandleWaitStatusChangeAsync(PipeRequest request, CancellationToken cancellationToken)
@@ -59,10 +59,10 @@ public sealed class PipeCommandHandler
         return await _singBoxManager.StopAsync(cancellationToken);
     }
 
-    private async Task<OperationResult> HandleRestartAsync(PipeRequest request, CancellationToken cancellationToken)
+    private async Task<OperationResult> HandleRestartAsync(CancellationToken cancellationToken)
     {
         await _logService.WriteInfoAsync("Restart requested.", cancellationToken);
-        return await _singBoxManager.RestartAsync(ReadStartRequest(request), cancellationToken);
+        return await _singBoxManager.RestartAsync(cancellationToken);
     }
 
     private async Task<OperationResult> HandleImportConfigAsync(PipeRequest request, CancellationToken cancellationToken)
@@ -103,17 +103,6 @@ public sealed class PipeCommandHandler
 
         return JsonSerializer.Deserialize<StatusChangeRequest>(request.Payload.Value.GetRawText(), PipeContracts.JsonOptions)
             ?? new StatusChangeRequest();
-    }
-
-    private static StartRequest ReadStartRequest(PipeRequest request)
-    {
-        if (request.Payload is null)
-        {
-            return new StartRequest();
-        }
-
-        return JsonSerializer.Deserialize<StartRequest>(request.Payload.Value.GetRawText(), PipeContracts.JsonOptions)
-            ?? new StartRequest();
     }
 
     private static PipeResponse ToResponse(OperationResult result) =>
