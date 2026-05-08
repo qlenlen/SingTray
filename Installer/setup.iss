@@ -16,9 +16,6 @@
 #ifndef MyServiceName
 #define MyServiceName "SingTray.Service"
 #endif
-#ifndef MyStartupTaskName
-#define MyStartupTaskName "SingTray GUI client"
-#endif
 #ifndef MyAppIcon
 #define MyAppIcon "..\SingTray.Client\Assets\SingTray.ico"
 #endif
@@ -72,7 +69,7 @@ Source: "{#MyClientStagingDir}\*"; DestDir: "{app}"; Flags: ignoreversion recurs
 Source: "{#MyServiceStagingDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Registry]
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: none; ValueName: "SingTray GUI client"; Flags: deletevalue
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "SingTray GUI client"; ValueData: """{app}\{#MyAppExeName}"""; Flags: uninsdeletevalue
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: none; ValueName: "SingTray"; Flags: deletevalue
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: none; ValueName: "SingTray.Client"; Flags: deletevalue
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: none; ValueName: "SingTray Client"; Flags: deletevalue
@@ -84,12 +81,10 @@ Name: "{autoprograms}\SingTray"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: 
 Filename: "{sys}\sc.exe"; Parameters: "create ""{#MyServiceName}"" binPath= ""{app}\{#MyServiceExeName}"" start= auto DisplayName= ""SingTray Service"""; Flags: runhidden waituntilterminated; Check: not ServiceExists('{#MyServiceName}')
 Filename: "{sys}\sc.exe"; Parameters: "description ""{#MyServiceName}"" ""SingTray background controller for sing-box."""; Flags: runhidden waituntilterminated; Check: ServiceExists('{#MyServiceName}')
 Filename: "{sys}\icacls.exe"; Parameters: """C:\ProgramData\SingTray"" /grant *S-1-5-32-545:(OI)(CI)M /T /C"; Flags: runhidden waituntilterminated
-Filename: "{cmd}"; Parameters: "/C schtasks /Delete /TN ""{#MyStartupTaskName}"" /F >NUL 2>NUL & schtasks /Create /TN ""{#MyStartupTaskName}"" /SC ONSTART /RU SYSTEM /TR ""\""{app}\{#MyAppExeName}\"""" /RL LIMITED /F"; Flags: runhidden waituntilterminated
 Filename: "{sys}\sc.exe"; Parameters: "start ""{#MyServiceName}"""; Flags: runhidden waituntilterminated
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch SingTray"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
-Filename: "{cmd}"; Parameters: "/C schtasks /Delete /TN ""{#MyStartupTaskName}"" /F >NUL 2>NUL"; Flags: runhidden waituntilterminated
 Filename: "{sys}\sc.exe"; Parameters: "stop ""{#MyServiceName}"""; Flags: runhidden waituntilterminated skipifdoesntexist; RunOnceId: "StopSingTrayService"
 Filename: "{sys}\sc.exe"; Parameters: "delete ""{#MyServiceName}"""; Flags: runhidden waituntilterminated skipifdoesntexist; RunOnceId: "DeleteSingTrayService"
 
