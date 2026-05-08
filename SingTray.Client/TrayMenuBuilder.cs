@@ -33,7 +33,7 @@ public sealed class TrayMenuBuilder
 
     public ContextMenuStrip Build()
     {
-        return new ContextMenuStrip
+        var menu = new ContextMenuStrip
         {
             ShowImageMargin = false,
             ShowCheckMargin = false,
@@ -52,6 +52,16 @@ public sealed class TrayMenuBuilder
                 _exitItem
             }
         };
+
+        menu.Closing += (_, args) =>
+        {
+            if (args.CloseReason == ToolStripDropDownCloseReason.ItemClicked)
+            {
+                args.Cancel = true;
+            }
+        };
+
+        return menu;
     }
 
     public void ApplyStatus(StatusInfo? status, bool serviceAvailable)

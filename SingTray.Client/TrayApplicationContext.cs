@@ -283,11 +283,91 @@ public sealed class TrayApplicationContext : ApplicationContext
 
     private void OnOpenDataFolderRequested(object? sender, EventArgs e)
     {
+        if (TryActivateExplorerWindow(AppPaths.ProgramDataRoot))
+        {
+            return;
+        }
+
         Process.Start(new ProcessStartInfo
         {
             FileName = AppPaths.ProgramDataRoot,
             UseShellExecute = true
         });
+    }
+
+    private static bool TryActivateExplorerWindow(string folderPath)
+    {
+        var shellType = Type.GetTypeFromProgID("Shell.Application");
+        if (shellType is null)
+        {
+            return false;
+        }
+
+        object? shell = null;
+        try
+        {
+            shell = Activator.CreateInstance(shellType);
+            if (shell is null)
+            {
+                return false;
+            }
+
+            var targetPath = NormalizeFolderPath(folderPath);
+            foreach (var window in ((dynamic)shell).Windows())
+            {
+                var windowPath = TryGetExplorerWindowPath(window);
+                if (windowPath is null || !PathsEqual(targetPath, windowPath))
+                {
+                    continue;
+                }
+
+                var hwnd = new IntPtr((int)((dynamic)window).HWND);
+                ShowWindow(hwnd, ShowWindowCommand.Restore);
+                SetForegroundWindow(hwnd);
+                return true;
+            }
+        }
+        catch
+        {
+            return false;
+        }
+        finally
+        {
+            if (shell is not null && Marshal.IsComObject(shell))
+            {
+                Marshal.ReleaseComObject(shell);
+            }
+        }
+
+        return false;
+    }
+
+    private static string? TryGetExplorerWindowPath(object window)
+    {
+        try
+        {
+            var locationUrl = (string)((dynamic)window).LocationURL;
+            if (string.IsNullOrWhiteSpace(locationUrl))
+            {
+                return null;
+            }
+
+            return NormalizeFolderPath(new Uri(locationUrl).LocalPath);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string NormalizeFolderPath(string path)
+    {
+        return Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+    }
+
+    private static bool PathsEqual(string left, string right)
+    {
+        return string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
     }
 
     private async void OnExitRequested(object? sender, EventArgs e)
@@ -698,6 +778,17 @@ public sealed class TrayApplicationContext : ApplicationContext
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool DestroyIcon(IntPtr hIcon);
+
+    [DllImport("user32.dll")]
+    private static extern bool ShowWindow(IntPtr hWnd, ShowWindowCommand command);
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    private enum ShowWindowCommand
+    {
+        Restore = 9
+    }
 
     private static GraphicsPath CreateSpeedSPath()
     {

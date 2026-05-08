@@ -49,8 +49,6 @@ public sealed class ImportService
             }
 
             Directory.CreateDirectory(AppPaths.ConfigDirectory);
-            var previousConfigPath = await _singBoxManager.GetActiveConfigPathAsync(cancellationToken);
-            var replacingSameFile = PathsEqual(previousConfigPath, destinationPath);
 
             if (File.Exists(destinationPath))
             {
@@ -62,11 +60,6 @@ public sealed class ImportService
                 File.Move(validationCopyPath, destinationPath, overwrite: true);
                 movedNewConfig = true;
                 await RefreshConfigStateAsync(destinationPath, cancellationToken);
-
-                if (!replacingSameFile)
-                {
-                    TryDeleteFile(previousConfigPath);
-                }
 
                 TryDeleteFile(backupPath);
             }
@@ -247,14 +240,6 @@ public sealed class ImportService
 
         var safeName = Path.GetFileName(importedFileName);
         return Path.Combine(AppPaths.ImportsDirectory, safeName);
-    }
-
-    private static bool PathsEqual(string left, string right)
-    {
-        return string.Equals(
-            Path.GetFullPath(left),
-            Path.GetFullPath(right),
-            StringComparison.OrdinalIgnoreCase);
     }
 
     private static void CopyDirectory(string sourceDirectory, string destinationDirectory)

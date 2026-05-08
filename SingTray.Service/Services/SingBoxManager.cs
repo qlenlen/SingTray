@@ -172,6 +172,7 @@ public sealed class SingBoxManager
             var process = _currentProcess;
             if (!IsProcessAlive(process))
             {
+                await CleanupManagedProcessesAsync("stop request cleanup", cancellationToken);
                 await _serviceState.UpdateAsync(record =>
                 {
                     record.RunState = RunState.Stopped;
@@ -190,6 +191,7 @@ public sealed class SingBoxManager
             _stopRequested = true;
 
             await ForceTerminateProcessAsync(trackedProcess, "stop request", cancellationToken);
+            await CleanupManagedProcessesAsync("stop request cleanup", cancellationToken);
 
             if (IsProcessAlive(trackedProcess))
             {
